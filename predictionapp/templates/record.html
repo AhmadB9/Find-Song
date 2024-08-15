@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Voice Recorder</title>
+    <style>
+    
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #ff7f50;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin: 0.5rem;
+        }
+
+        button:disabled {
+            background-color: #d3d3d3;
+            cursor: not-allowed;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #ff6347;
+        }
+
+        #audioPlayback {
+            display: block;
+            margin: 1rem auto;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        #uploadButton {
+            background-color: #32cd32;
+
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+        }
+        p.description {
+            font-size: 1.2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+            margin-top: 2rem;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+
+        ul li {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background-color 0.3s ease;
+        }
+
+        ul li:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+
+</head>
+<body>
+    <div class="container">
+    <h1>Find Your Song</h1>
+    <p class="description">Hum a tune and let us find the song for you. Just start recording, hum your melody, and we'll do the rest!</p>    <button id="startRecord">Start Recording</button>
+    <button id="stopRecord" disabled>Stop Recording</button>
+    <audio id="audioPlayback" controls></audio>
+    <form id="uploadForm" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" id="audioFile" name="audioFile" hidden>
+        <button type="submit" id="uploadButton" disabled>Find Song</button>
+    </form>
+
+    <script>
+        let startButton = document.getElementById('startRecord');
+        let stopButton = document.getElementById('stopRecord');
+        let audioPlayback = document.getElementById('audioPlayback');
+        let uploadButton = document.getElementById('uploadButton');
+        let audioFileInput = document.getElementById('audioFile');
+        let mediaRecorder;
+        let audioChunks = [];
+
+        startButton.addEventListener('click', async () => {
+            let stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.start();
+            
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+            
+
+            mediaRecorder.onstop = async () => {
+                let audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                let audioUrl = URL.createObjectURL(audioBlob);
+                audioPlayback.src = audioUrl;
+                audioPlayback.style.display = 'block';
+
+                let file = new File([audioBlob], 'recording.wav', { type: 'audio/wav' });
+                let dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                audioFileInput.files = dataTransfer.files;
+                uploadButton.disabled = false;
+            };
+
+            startButton.disabled = true;
+            stopButton.disabled = false;
+        });
+
+        stopButton.addEventListener('click', () => {
+            mediaRecorder.stop();
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        });
+    </script>
+    <ul>
+        {% for song,proba in songs_list  %}
+        <li>
+            {{song}} : {{proba}} %
+        </li>
+        {% endfor %}
+    </ul>
+    </div>
+</body>
+</html>
